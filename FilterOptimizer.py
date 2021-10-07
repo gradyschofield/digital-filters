@@ -3,6 +3,7 @@ import random
 import numpy
 import scipy.linalg
 import math
+import sys
 import cmath
 import functools
 import random
@@ -139,7 +140,36 @@ def newton(grid, filter, sampleRate, maxSteps, maxStepLength, tol, startingPoint
     plt.show()
     return r, runInfo'''
 
-def update(r, sampleRate):
+def plotRoots(r, title, extraRoots = []):
+    numeratorRoots, denominatorRoots = r.getAllRoots()
+    x = [z.real for z in denominatorRoots]
+    y = [z.imag for z in denominatorRoots]
+    plt.scatter(x, y, marker='o')
+    ax = plt.gca()
+    ax.set_aspect(1.0)
+    x = [z.real for z in numeratorRoots]
+    y = [z.imag for z in numeratorRoots]
+    plt.scatter(x, y, marker='^')
+    x = [z.real for z in extraRoots]
+    y = [z.imag for z in extraRoots]
+    plt.scatter(x, y, marker='x')
+    x = [math.cos(theta) for theta in numpy.linspace(0, 2 * math.pi, 100)]
+    y = [math.sin(theta) for theta in numpy.linspace(0, 2 * math.pi, 100)]
+    plt.plot(x, y)
+    plt.title(title)
+    plt.show()
+
+def plotDenominatorRoots(r, title):
+    numeratorRoots, denominatorRoots = r.getAllRoots()
+    x = [z.real for z in denominatorRoots]
+    y = [z.imag for z in denominatorRoots]
+    plt.scatter(x, y, marker='o')
+    plt.title(title)
+    ax = plt.gca()
+    ax.set_aspect(1.0)
+    plt.show()
+
+def update(r, filter, sampleRate):
     '''deriv2 = r.secondDerivative(grid, filter, sampleRate)
     eigenvalues, eigenvecors = scipy.linalg.eigh(deriv2)
     print("eigenvalues", eigenvalues)'''
@@ -147,24 +177,15 @@ def update(r, sampleRate):
     plt.plot(x, y)
     plt.title("LS partial result")
     plt.show()
-    numeratorRoots, denominatorRoots = r.getAllRoots()
-    x = [z.real for z in denominatorRoots]
-    y = [z.imag for z in denominatorRoots]
-    plt.scatter(x, y, marker='o')
-    x = [z.real for z in numeratorRoots]
-    y = [z.imag for z in numeratorRoots]
-    plt.scatter(x, y, marker='^')
-    x = [math.cos(theta) for theta in numpy.linspace(0, 2 * math.pi, 100)]
-    y = [math.sin(theta) for theta in numpy.linspace(0, 2 * math.pi, 100)]
-    plt.plot(x, y)
-    plt.title("LS partial result roots")
+    x, y = r.plotData(0, 48000, 96000, len(filter))
+    residual = [t1 - t2 for t1, t2 in zip(y, filter)]
+    plt.plot(grid, residual)
+    plt.title('LS partial result residual')
     plt.show()
+    plotRoots(r, "LS partial result roots")
+    plotDenominatorRoots(r, "LS partial result denominator roots")
 
-    x = [z.real for z in denominatorRoots]
-    y = [z.imag for z in denominatorRoots]
-    plt.scatter(x, y, marker='o')
-    plt.title("LS partial result denominator roots")
-    plt.show()
+
 
 
 def lineSearch(grid, filter, sampleRate, stagnationTolerance, maxLineSearchSteps, maxStepLength, tol, startingPoint, bfgs = False):
@@ -264,8 +285,9 @@ def lineSearch(grid, filter, sampleRate, stagnationTolerance, maxLineSearchSteps
         derivNorm = nextDerivNorm
         stepsSinceDerivUpdate += 1
         if stepsSinceDerivUpdate == 100:
-            update(r, sampleRate)
+            update(r, filter, sampleRate)
             stepsSinceDerivUpdate = 0
+            break
         print("LS step", newDot, newObj, derivNorm)
         if newObj < 2:
             bfgs = True
@@ -280,7 +302,7 @@ def lineSearch(grid, filter, sampleRate, stagnationTolerance, maxLineSearchSteps
         if bestStepLength == 0:
             print("LS got stuck")
             break
-    update(r, sampleRate)
+    update(r, filter, sampleRate)
     x, y = r.plotData(0, 2000, 96000)
     plt.plot(x, y)
     plt.title("LS result zoomed")
@@ -291,7 +313,7 @@ def lineSearch(grid, filter, sampleRate, stagnationTolerance, maxLineSearchSteps
     plt.show()
     return r, runInfo
 
-def geneticOptimizer(maxGenerations, populationSize, cullSize,
+def geneticOptimizer(filter, maxGenerations, populationSize, cullSize,
                      RationalType,
                      numNumeratorReal, numNumeratorComplex,
                      numDenominatorReal, numDenominatorComplex,
@@ -362,9 +384,9 @@ if __name__ == '__main__':
     #rationalType = Rational.Rational
     rationalType = DiskRational.DiskRational
     numRealNumeratorRoots = 0
-    numComplexNumeratorRoots = 20
+    numComplexNumeratorRoots = 21
     numRealDenominatorRoots = 0
-    numComplexDenominatorRoots = 20
+    numComplexDenominatorRoots = 21
 
     grid = numpy.linspace(0, sampleRate/2, gridPoints)
     if False:
@@ -375,29 +397,62 @@ if __name__ == '__main__':
         plt.scatter(x, y, marker='o')
         plt.title("Filter roots")
         plt.show()
-        filter = c.evaluateOnScale(grid, 0, sampleRate/2)
+        filterFunc = c.evaluateOnScale(grid, 0, sampleRate/2)
     else:
         bspline = BSpline.BSpline(grid, BSpline.BSpline.getDefaultKnots())
-        filter = bspline.getBasis(9)
-    plt.plot(grid[1:100], filter[1:100])
+        filterFunc = bspline.getBasis(8)
+    plt.plot(grid[1:100], filterFunc[1:100])
     plt.title("Exact filter")
     plt.show()
     r = None
     while True:
-        r = geneticOptimizer(5, 2000, 200, rationalType,
+        r = geneticOptimizer(filterFunc, 5, 2000, 200, rationalType,
                          numRealNumeratorRoots, numComplexNumeratorRoots,
                          numRealDenominatorRoots, numComplexDenominatorRoots)
-        '''r = randomSearch(grid, filter, sampleRate, 10, numRealNumeratorRoots,
+        '''r = randomSearch(grid, filterFunc, sampleRate, 10, numRealNumeratorRoots,
                          numComplexNumeratorRoots, numRealDenominatorRoots,
                          numComplexDenominatorRoots, rationalType)'''
         #testRoots(r)
         #r, gdRunInfo = gradientDescent(20, 1E-7, r)
-        r, lsRunInfo = lineSearch(grid, filter, sampleRate, 1E-5, 10, 10, 1E-7, r, False)
+        r, lsRunInfo = lineSearch(grid, filterFunc, sampleRate, 1E-5, 10, 10, 1E-7, r, False)
         #testRoots(r)
-        #r, newtonRunInfo = newton(grid, filter, sampleRate, 100, 0, 1E-7, r, printEachStep=False, computeEigenvector=True)
+        #r, newtonRunInfo = newton(grid, filterFunc, sampleRate, 100, 0, 1E-7, r, printEachStep=False, computeEigenvector=True)
         #testRoots(r)
         x, y = r.plotData(0, 48000, 96000, gridPoints)
-        residual = [t1 - t2 for t1, t2 in zip(y, filter)]
+        residual = [t1 - t2 for t1, t2 in zip(y, filterFunc)]
         plt.plot(grid, residual)
         plt.title('Residual')
         plt.show()
+
+        extremumIndex = numpy.argmax(numpy.abs(residual))
+        print(extremumIndex)
+        print("Extermum index", extremumIndex)
+        extremumFrequency = grid[extremumIndex]
+        print("Extermum frequency", extremumFrequency)
+
+        numeratorRoots, denominatorRoots = r.getRoots()
+        numeratorRoots = [x for x in filter(lambda z: math.pi >= cmath.phase(z) >= 0, numeratorRoots)]
+        numeratorRoots.sort(key=lambda x: cmath.phase(x))
+        insertionFrequency = None
+        for i, root in enumerate(numeratorRoots):
+            if cmath.phase(root) > 2 * math.pi * extremumFrequency / sampleRate:
+                if i > 1:
+                    insertionFrequency = sampleRate / 2 / math.pi * (cmath.phase(numeratorRoots[i-1]) + cmath.phase(numeratorRoots[i-2])) / 2
+                    break
+                elif i > 0:
+                    insertionFrequency = sampleRate / 2 / math.pi * cmath.phase(numeratorRoots[i-1]) / 2
+                    break
+                else:
+                    insertionFrequency = sampleRate / 2 / math.pi * cmath.phase(numeratorRoots[0]) / 2
+                    break
+        print("Insertion frequency", insertionFrequency)
+        for alpha in numpy.linspace(0.5, 0.95, 10):
+            numeratorRoot = alpha * cmath.exp(complex(0, 2 * math.pi * insertionFrequency / sampleRate))
+            denominatorRoot = (1-alpha) * cmath.exp(complex(0, 2 * math.pi * insertionFrequency / sampleRate))
+            plotRoots(r, "Insertion roots", [numeratorRoot, numeratorRoot.conjugate(), denominatorRoot, denominatorRoot.conjugate()])
+            x, y = r.plotDataRootInsertion(0, 48000, 96000, gridPoints, numeratorRoot, denominatorRoot)
+            plt.plot(x, y)
+            plt.title('Inserted root ' + str(alpha))
+            plt.show()
+
+        sys.exit(0)

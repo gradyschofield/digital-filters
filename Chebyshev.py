@@ -1,4 +1,6 @@
 import math
+import sys
+
 import numpy
 import matplotlib.pyplot as plt
 
@@ -20,7 +22,7 @@ class Chebyshev:
         return math.pi / degree
 
     @staticmethod
-    def projectStep(start, stop, min, max, gain, isFilter, degree):
+    def projectStep(start, stop, min, max, gain, isFilter, degree, smooth=True):
         normalizedStart = 2 * (start - min) / (max-min) - 1
         normalizedStop = 2 * (stop - min) / (max-min) - 1
         step = lambda x: gain if x >= normalizedStart and x <= normalizedStop else 0 if isFilter else 1
@@ -35,8 +37,11 @@ class Chebyshev:
                 integral += weight * c.evaluate(x) * step(x)
             integral *= 1 / math.pi if deg == 0 else 2 / math.pi
             i = deg
-            gI = ((1-i/float(degree+2)) * math.sin(aK)*math.cos(i*aK) + 1/(degree+2)*math.cos(aK)*math.sin(i*aK))/math.sin(aK)
-            coefficients.append(gI * integral)
+            if smooth:
+                gI = ((1-i/float(degree+2)) * math.sin(aK)*math.cos(i*aK) + 1/(degree+2)*math.cos(aK)*math.sin(i*aK))/math.sin(aK)
+                coefficients.append(gI * integral)
+            else:
+                coefficients.append(integral)
         return Chebyshev(coefficients)
 
     def evaluate(self, x):
@@ -103,26 +108,23 @@ class Chebyshev:
         return x, y
 
 if __name__ == '__main__':
-    c = Chebyshev.projectStep(500, 1000, 0, 20000, 6, False, 180)
-    x, y = c.plotDataOnScale(0, 2000, 0, 20000)
-    plt.plot(x, y)
-    '''for deg in range(0,5):
-        zeros = Chebyshev.getZeros(deg+1)
-        weight = Chebyshev.getIntegrationWeight(deg+1)
-        coef = [0 if i < deg else 1 for i in range(deg+1)]
-        c = Chebyshev(coef)
-        integral = 0
-        for x in zeros:
-            integral += c.evaluate(x)**2 * weight
-        print(integral)
-        x = []
-        y = []
-        inc = 0.01
-        for i in range(0, int(2 / inc)):
-            t = inc * i - 1
-            x.append(t)
-            y.append(c.evaluate(t))
-        plt.plot(x, y)
-        '''
-    plt.show()
+    if 2 == len(sys.argv):
+        filterStart = float(sys.argv[1])
+        print(filterStart)
+        c1 = Chebyshev.projectStep(500, 1000, 0, 20000, 6, False, 180, False)
+        c2 = Chebyshev.projectStep(500, 1000, 0, 20000, 6, False, 180, True)
+        x1, y1 = c1.plotDataOnScale(0, 2000, 0, 20000)
+        x2, y2 = c2.plotDataOnScale(0, 2000, 0, 20000)
+        plt.plot(x1, y1)
+        plt.plot(x2, y2)
+        plt.show()
+    else:
+        print("USAGE: filterStart filterStop minFrequency maxFrequency gain isFilter degree smooth")
+        c1 = Chebyshev.projectStep(500, 1000, 0, 20000, 6, False, 180, False)
+        c2 = Chebyshev.projectStep(500, 1000, 0, 20000, 6, False, 180, True)
+        x1, y1 = c1.plotDataOnScale(0, 2000, 0, 20000)
+        x2, y2 = c2.plotDataOnScale(0, 2000, 0, 20000)
+        plt.plot(x1, y1)
+        plt.plot(x2, y2)
+        plt.show()
 
