@@ -4,10 +4,12 @@ import numpy
 import scipy.linalg
 import math
 import sys
+import time
 import cmath
 import functools
 import random
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 import Chebyshev
 import DiskRational
@@ -384,9 +386,9 @@ if __name__ == '__main__':
     #rationalType = Rational.Rational
     rationalType = DiskRational.DiskRational
     numRealNumeratorRoots = 0
-    numComplexNumeratorRoots = 21
+    numComplexNumeratorRoots = 20
     numRealDenominatorRoots = 0
-    numComplexDenominatorRoots = 21
+    numComplexDenominatorRoots = 20
 
     grid = numpy.linspace(0, sampleRate/2, gridPoints)
     if False:
@@ -424,35 +426,70 @@ if __name__ == '__main__':
         plt.title('Residual')
         plt.show()
 
-        extremumIndex = numpy.argmax(numpy.abs(residual))
-        print(extremumIndex)
-        print("Extermum index", extremumIndex)
-        extremumFrequency = grid[extremumIndex]
-        print("Extermum frequency", extremumFrequency)
+        radiusCoord = numpy.linspace(0.01, 1.1, 20)
+        angleCoord = numpy.linspace(0, math.pi, 20)
+        radiusGrid, thetaGrid = numpy.meshgrid(radiusCoord, angleCoord)
+        objGrid = numpy.zeros((len(thetaGrid), len(radiusGrid)))
+        minObj = 2000
+        minFreq  =0
+        for i in range(len(radiusCoord)):
+            for j in range(len(angleCoord)):
+                radius = radiusGrid[i, j]
+                theta = thetaGrid[i, j]
+                newRoot = radius * cmath.exp(complex(0, theta))
+                #r.setFixedRoots([0.5*cmath.exp(complex(0,math.pi*60/180))], [newRoot])
+                r.setFixedRoots([newRoot], [])
+                obj = Util.objective(grid, filterFunc, sampleRate, r)
+                objGrid[i, j] = math.log10(obj)
+                if obj < minObj:
+                    minObj = obj
+                    minFreq = newRoot
+        ax = plt.subplot(111, polar=True)
+        ctf = ax.contourf(thetaGrid, radiusGrid, objGrid, cmap=cm.jet)
+        plt.colorbar(ctf)
+        plt.show()
+        print("Min obj", minObj)
+        print("Min obj root", minFreq)
 
-        numeratorRoots, denominatorRoots = r.getRoots()
-        numeratorRoots = [x for x in filter(lambda z: math.pi >= cmath.phase(z) >= 0, numeratorRoots)]
-        numeratorRoots.sort(key=lambda x: cmath.phase(x))
-        insertionFrequency = None
-        for i, root in enumerate(numeratorRoots):
-            if cmath.phase(root) > 2 * math.pi * extremumFrequency / sampleRate:
-                if i > 1:
-                    insertionFrequency = sampleRate / 2 / math.pi * (cmath.phase(numeratorRoots[i-1]) + cmath.phase(numeratorRoots[i-2])) / 2
-                    break
-                elif i > 0:
-                    insertionFrequency = sampleRate / 2 / math.pi * cmath.phase(numeratorRoots[i-1]) / 2
-                    break
-                else:
-                    insertionFrequency = sampleRate / 2 / math.pi * cmath.phase(numeratorRoots[0]) / 2
-                    break
-        print("Insertion frequency", insertionFrequency)
-        for alpha in numpy.linspace(0.5, 0.95, 10):
-            numeratorRoot = alpha * cmath.exp(complex(0, 2 * math.pi * insertionFrequency / sampleRate))
-            denominatorRoot = (1-alpha) * cmath.exp(complex(0, 2 * math.pi * insertionFrequency / sampleRate))
-            plotRoots(r, "Insertion roots", [numeratorRoot, numeratorRoot.conjugate(), denominatorRoot, denominatorRoot.conjugate()])
-            x, y = r.plotDataRootInsertion(0, 48000, 96000, gridPoints, numeratorRoot, denominatorRoot)
-            plt.plot(x, y)
-            plt.title('Inserted root ' + str(alpha))
-            plt.show()
+        if True:
+            extremumIndex = numpy.argmax(numpy.abs(residual))
+            print(extremumIndex)
+            print("Extermum index", extremumIndex)
+            extremumFrequency = grid[extremumIndex]
+            print("Extermum frequency", extremumFrequency)
+
+            numeratorRoots, denominatorRoots = r.getRoots()
+            numeratorRoots = [x for x in filter(lambda z: math.pi >= cmath.phase(z) >= 0, numeratorRoots)]
+            numeratorRoots.sort(key=lambda x: cmath.phase(x))
+            insertionFrequency = None
+            for i, root in enumerate(numeratorRoots):
+                if cmath.phase(root) > 2 * math.pi * extremumFrequency / sampleRate:
+                    if i > 1:
+                        #insertionFrequency = sampleRate / 2 / math.pi * (cmath.phase(numeratorRoots[i-1]) + cmath.phase(numeratorRoots[i-2])) / 2
+                        insertionFrequency = sampleRate / 2 / math.pi * (cmath.phase(numeratorRoots[i+1]) + cmath.phase(numeratorRoots[i])) / 2
+                        break
+                    elif i > 0:
+                        insertionFrequency = sampleRate / 2 / math.pi * cmath.phase(numeratorRoots[i-1]) / 2
+                        break
+                    else:
+                        insertionFrequency = sampleRate / 2 / math.pi * cmath.phase(numeratorRoots[0]) / 2
+                        break
+            insertionFrequency = extremumFrequency
+            print("Insertion frequency", insertionFrequency)
+            for alpha in [0.95]:#numpy.linspace(0.5, 0.95, 10):
+                print("starting iteration", alpha)
+                numeratorRoot = alpha * cmath.exp(complex(0, 2 * math.pi * insertionFrequency / sampleRate))
+                denominatorRoot = (1-alpha) * cmath.exp(complex(0, 2 * math.pi * insertionFrequency / sampleRate))
+                plotRoots(r, "Insertion roots", [numeratorRoot, numeratorRoot.conjugate(), denominatorRoot, denominatorRoot.conjugate()])
+                x, y = r.plotDataRootInsertion(0, 48000, 96000, gridPoints, numeratorRoot, denominatorRoot)
+                plt.plot(x, y)
+                plt.title('Residual with inserted root ' + str(alpha))
+                plt.show()
+                time.sleep(1)
+                #r.setFixedRoots([numeratorRoot], [denominatorRoot])
+                r.setFixedRoots([minFreq], [])
+                r, lsRunInfo = lineSearch(grid, filterFunc, sampleRate, 1E-5, 10, 10, 1E-7, r, False)
+                time.sleep(1)
+
 
         sys.exit(0)

@@ -12,8 +12,6 @@ class DiskRational(BaseRational.BaseRational):
     maxNumeratorRadius = 1.2
     maxDenominatorRadius = 0.2
     numeratorCoef = []
-    realDenominatorRoots = []
-    complexDenominatorRoots = []
 
     realDenominatorX = []
     complexDenominatorX = []
@@ -24,6 +22,8 @@ class DiskRational(BaseRational.BaseRational):
         self.realDenominatorRoots = list(realDenominatorRoots)
         self.complexDenominatorRoots = list(complexDenominatorRoots)
         self.computeParamsFromRoots()
+        self.fixedNumeratorRoots = []
+        self.fixedDenominatorRoots = []
 
     @staticmethod
     def computeParamsFromRootsHelper(rr, cr, maxRadius):
@@ -82,21 +82,32 @@ class DiskRational(BaseRational.BaseRational):
         return DiskRational(numerator.coefficients, realDenominatorRoots, complexDenominatorRoots)
 
     def copy(self):
-        return DiskRational(self.numeratorCoef, self.realDenominatorRoots, self.complexDenominatorRoots)
+        r = DiskRational(self.numeratorCoef, self.realDenominatorRoots, self.complexDenominatorRoots)
+        r.setFixedRoots(self.fixedNumeratorRoots, self.fixedDenominatorRoots)
+        return r
+
+    def incorporateRoots(self, numeratorRoots, denominatorRoots):
+        Util.Polynomial(self.numeratorCoef)
 
     def evaluate(self, x):
         n = 0
         d = 1
         for i, a in enumerate(self.numeratorCoef):
             n += a * x**i
+        for r in self.fixedNumeratorRoots:
+            n *= (x - r)
+            n *= (x - r.conjugate())
         for r in self.realDenominatorRoots:
             d *= (x - r)
         for r in self.complexDenominatorRoots:
             d *= (x - r)
             d *= (x - r.conjugate())
+        for r in self.fixedDenominatorRoots:
+            d *= (x - r)
+            d *= (x - r.conjugate())
         return n / d
 
-    def evaluatePartial(self, x):
+    '''def evaluatePartial(self, x):
         n = 1
         d = 1
         nParts = []
@@ -119,13 +130,16 @@ class DiskRational(BaseRational.BaseRational):
             d *= t
         nParts = [n / t for t in nParts]
         dParts = [d / t for t in dParts]
-        return nParts, dParts, n, d
+        return nParts, dParts, n, d'''
 
     def evaluateDenominator(self, x):
         d = 1
         for r in self.realDenominatorRoots:
             d *= (x - r)
         for r in self.complexDenominatorRoots:
+            d *= (x - r)
+            d *= (x - r.conjugate())
+        for r in self.fixedDenominatorRoots:
             d *= (x - r)
             d *= (x - r.conjugate())
         return d
@@ -155,6 +169,21 @@ class DiskRational(BaseRational.BaseRational):
         ret.extend(self.complexDenominatorTheta)
         return ret
 
+    def setFixedRoots(self, fixedNumeratorRoots, fixedDenominatorRoots):
+        self.fixedNumeratorRoots = fixedNumeratorRoots
+        self.fixedDenominatorRoots = fixedDenominatorRoots
+
+    def evaluateFixedRoots(self, z):
+        n = 1
+        for r in self.fixedNumeratorRoots:
+            n *= (z - r)
+            n *= (z - r.conjugate())
+        d = 1
+        for r in self.fixedDenominatorRoots:
+            d *= (z - r)
+            d *= (z - r.conjugate())
+        return n/d
+
     def derivative(self, grid, filter, sampleRate):
         deriv = [0 for i in range(len(self.numeratorCoef) +
                                   len(self.realDenominatorX) +
@@ -165,16 +194,17 @@ class DiskRational(BaseRational.BaseRational):
             y = self.evaluate(z)
             d = self.evaluateDenominator(z)
             f = abs(y)
+            fixedPart = self.evaluateFixedRoots(z)
             prefactor = 2 * (f - filterValue) / f
             k = 0
             for i in range(len(self.numeratorCoef)):
-                deriv[k] += prefactor * (y.conjugate() * z**i / d).real
+                deriv[k] += prefactor * (y.conjugate() * fixedPart * z**i / d).real
                 k += 1
             for i in range(len(self.realDenominatorX)):
                 x = self.realDenominatorX[i]
                 r = DiskRational.maxDenominatorRadius * (1 - math.exp(-x) / (1 + math.exp(-x)))
                 z2 = z - r
-                deriv[k] += prefactor * DiskRational.maxDenominatorRadius * (y * y / z2 * (-2*math.exp(-2*x)/(1+math.exp(-x))**2)).real
+                deriv[k] += prefactor * DiskRational.maxDenominatorRadius * (y * y / z2 * fixedPart * (-2*math.exp(-2*x)/(1+math.exp(-x))**2)).real
                 k += 1
             for x, theta in zip(self.complexDenominatorX, self.complexDenominatorTheta):
                 r = DiskRational.maxDenominatorRadius / (1 + math.exp(-x)) * cmath.exp(complex(0, theta))
@@ -182,8 +212,8 @@ class DiskRational(BaseRational.BaseRational):
                 z2rconj = z - r.conjugate()
                 dX = DiskRational.maxDenominatorRadius * math.exp(-x)/(1+math.exp(-x))**2 * cmath.exp(complex(0, theta))
                 dTheta = DiskRational.maxDenominatorRadius * complex(0, 1) * cmath.exp(complex(0, theta)) / (1+math.exp(-x))
-                deriv[k] += prefactor * (y.conjugate() * y * (dX / z2 + dX.conjugate() / z2rconj)).real
-                deriv[k+1] += prefactor * (y.conjugate() * y * (dTheta / z2 + dTheta.conjugate() / z2rconj)).real
+                deriv[k] += prefactor * (y.conjugate() * fixedPart * y * (dX / z2 + dX.conjugate() / z2rconj)).real
+                deriv[k+1] += prefactor * (y.conjugate() * fixedPart * y * (dTheta / z2 + dTheta.conjugate() / z2rconj)).real
                 k += 2
         numGridPoints = len(grid)
         deriv = [t / numGridPoints for t in deriv]
@@ -239,6 +269,7 @@ if __name__ == '__main__':
     filter = bspline.getBasis(8)
 
     r = DiskRational.create(0, 2, 0, 2)
+    r.setFixedRoots([complex(0.2, 0.3)], [])
     deriv, derivNorm = r.derivative(grid, filter, sampleRate)
     h = 0.001
     r2 = r.copy()
