@@ -87,7 +87,16 @@ class DiskRational(BaseRational.BaseRational):
         return r
 
     def incorporateRoots(self, numeratorRoots, denominatorRoots):
-        Util.Polynomial(self.numeratorCoef)
+        p = Util.Polynomial(self.numeratorCoef)
+        for r in numeratorRoots:
+            p = p.mulMonomial(-r)
+            p = p.mulMonomial(-r.conjugate())
+        self.numeratorCoef = p.realifyCoef().coefficients
+        rx, cx, ctheta = self.computeParamsFromRootsHelper([], denominatorRoots, self.maxDenominatorRadius)
+        self.complexDenominatorX.extend(cx)
+        self.complexDenominatorTheta.extend(ctheta)
+        self.computeRootsFromParams()
+
 
     def evaluate(self, x):
         n = 0
