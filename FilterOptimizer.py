@@ -1,7 +1,6 @@
 import random
 
 import numpy
-import scipy.linalg
 import math
 import sys
 import time
@@ -73,8 +72,8 @@ def newton(grid, filter, sampleRate, maxSteps, maxStepLength, tol, startingPoint
             break
         deriv2 = r.secondDerivative(grid, filter, sampleRate)
         if computeEigenvector:
-            eigenvalues, eigenvecors = scipy.linalg.eigh(deriv2)
-            print("eigenvalues", eigenvalues)
+            '''eigenvalues, eigenvecors = scipy.linalg.eigh(deriv2)
+            print("eigenvalues", eigenvalues)'''
             rc = list(r.denominatorCoef)
             rc.reverse()
             denominatorRoots = numpy.roots(rc)
@@ -210,8 +209,8 @@ def lineSearch(grid, filter, sampleRate, stagnationTolerance, maxLineSearchSteps
         bestStepLength = 0
         satisfiedWolfeConditions = False
         if bfgs:
-            eigenvalues, eigenvectors = scipy.linalg.eigh(B)
-            print("B eigs", eigenvalues)
+            '''eigenvalues, eigenvectors = scipy.linalg.eigh(B)
+            print("B eigs", eigenvalues)'''
             conditionNumberLimit = 10
             if False:#numpy.max(numpy.abs(eigenvalues)) / numpy.min(numpy.abs(eigenvalues)) > conditionNumberLimit:
                 print("condition number exceeded ", conditionNumberLimit, "restarting with B=I")
@@ -375,30 +374,24 @@ def testRoots(rational, log = True):
         return True
 
 if __name__ == '__main__':
-    stepMin = 50
-    stepMax = 100
-    gain = 6
-    gridPoints = 100
-    isFilter = False
+    stepMin = 5000
+    stepMax = 10000
+    gain = 1
+    gridPoints = 200
+    isFilter = True
     sampleRate = 96000
     rate = 0.01
-    degree = 500
+    degree = 80
     #rationalType = Rational.Rational
     rationalType = DiskRational.DiskRational
     numRealNumeratorRoots = 0
-    numComplexNumeratorRoots = 32
+    numComplexNumeratorRoots = 20
     numRealDenominatorRoots = 0
-    numComplexDenominatorRoots = 32
+    numComplexDenominatorRoots = 20
 
     grid = numpy.linspace(0, sampleRate/2, gridPoints)
-    if False:
+    if True:
         c = Chebyshev.Chebyshev.projectStep(stepMin, stepMax, 0, sampleRate/2, gain, isFilter, degree)
-        filterRoots = c.getAllRoots()
-        x = [z.real for z in filterRoots]
-        y = [z.imag for z in filterRoots]
-        plt.scatter(x, y, marker='o')
-        plt.title("Filter roots")
-        plt.show()
         filterFunc = c.evaluateOnScale(grid, 0, sampleRate/2)
     else:
         bspline = BSpline.BSpline(grid, BSpline.BSpline.getDefaultKnots())
