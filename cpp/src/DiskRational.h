@@ -204,156 +204,62 @@ class DiskRational {
                 deriv[k] += prefactor * (conj(y) * fixedPart * pow(z, i) / d).real()
                 k += 1
             }
-            for i in range(len(self .realDenominatorX)):
-                x = self.realDenominatorX[i]
-                r = DiskRational.maxDenominatorRadius * (1 - math.exp(-x) / (1 + math.exp(-x)))
-                z2 = z - r
-                deriv[k] += prefactor * DiskRational . maxDenominatorRadius * (y * y / z2 * fixedPart * (-2 * math.exp(-2 * x) / (1 + math.exp(-x)) * *2)). real
-                k += 1
-            for x, theta in zip(self .complexDenominatorX, self.complexDenominatorTheta):
-            r = DiskRational.maxDenominatorRadius / (1 + math.exp(-x)) * cmath.exp(complex(0, theta))
-            z2 = z - r
-            z2rconj = z - r.conjugate()
-            dX = DiskRational.maxDenominatorRadius * math.exp(-x) / (1 + math.exp(-x)) * *2 *
-                 cmath.exp(complex(0, theta))
-            dTheta = DiskRational.maxDenominatorRadius * complex(0, 1) * cmath.exp(complex(0, theta)) /
-                     (1 + math.exp(-x))
-            deriv[k] +=
-                    prefactor * (y
-                                         .
-
-                                                 conjugate()
-
-                                 *
-                                 fixedPart * y
-                                 * (dX / z2 + dX.
-
-                            conjugate()
-
-                                              / z2rconj)).
-                            real
-            deriv[k + 1]
-                    +=
-                    prefactor * (y
-                                         .
-
-                                                 conjugate()
-
-                                 *
-                                 fixedPart * y
-                                 * (dTheta / z2 + dTheta.
-
-                            conjugate()
-
-                                                  / z2rconj)).
-                            real
-            k
-                    += 2
+            for(int i = 0; i < denominatorX.size(); ++i) {
+                T x = denominatorX[i];
+                T theta = denominatorTheta[i];
+                T r = maxDenominatorRadius / (1 + exp(-x)) * exp(complex(0, theta));
+                complex<T> z2 = z - r;
+                complex<T> z2rconj = z - conj(r);
+                complex<T> dX = maxDenominatorRadius * exp(-x) / (1 + exp(-x)) * *2 * exp(complex(0, theta));
+                complex<T> dTheta = maxDenominatorRadius * complex(0, 1) * exp(complex(0, theta)) / (1 + math.exp(-x));
+                deriv[k] += prefactor * (conj(y) * fixedPart * y * (dX / z2 + conj(dX) / z2rconj)).real();
+                deriv[k + 1] += prefactor * (conj(y) * fixedPart * y * (dTheta / z2 + conj(dTheta) / z2rconj)).real()
+                k += 2
+            }
         }
-        numGridPoints = len(grid)
-        deriv =
-        [t / numGridPoints
-        for
-        t in
-        deriv]
-        norm = functools.reduce(lambda
-        n,
-                t: n + t * t, deriv,
-                0)
-        return deriv, math.
-                sqrt(norm)
+        T numGridPointsInv = 1.0 / grid.size();
+        T norm = 0
+        for(T & x : deriv) {
+            x *= numGridPointsInv;
+            norm += x*x;
+        }
+        return forward_as_tuple(move(deriv), sqrt(norm));
     }
 
-    def mutate(self, chanceOfMutation, mutationSize)
+    void mutate(float chanceOfMutation, float mutationSize) {
+        float randInv = 1.0 / RAND_MAX;
+        for(T &x : numeratorCoef) {
+            if(rand()*randInv < chanceOfMutation) {
+                x *= 1 + (rand()*randInv-0.5)*mutationSize;
+            }
+        }
+        for(T & x : denominatorX) {
+            if(rand()*randInv < chanceOfMutation) {
+                x *= 1 + (rand()*randInv-0.5)*mutationSize;
+            }
+        }
+        for(T & theta : denominatorTheta) {
+            if(rand()*randInv < chanceOfMutation) {
+                theta *= 1 + (rand()*randInv-0.5)*mutationSize;
+            }
+        }
+        computeRootsFromParams();
+    }
 
-    :
-    newCoef = []
-    for
-    x in
-    self.
-    numeratorCoef:
-    if random.uniform(0, 1) <
-    chanceOfMutation:
-            x
-    *= 1 + random.uniform(-mutationSize/2, mutationSize/2)
-    newCoef.
-    append(x)
-    self.
-    numeratorCoef = newCoef
-    newCoef = []
-    for
-    x in
-    self.
-    realDenominatorX:
-    if random.uniform(0, 1) <
-    chanceOfMutation:
-            x
-    *= 1 + random.uniform(-mutationSize/2, mutationSize/2)
-    newCoef.
-    append(x)
-    self.
-    realDenominatorX = newCoef
-    newCoef = []
-    for
-    x in
-    self.
-    complexDenominatorX:
-    if random.uniform(0, 1) <
-    chanceOfMutation:
-            x
-    *= 1 + random.uniform(-mutationSize/2, mutationSize/2)
-    newCoef.
-    append(x)
-    self.
-    complexDenominatorX = newCoef
-    newCoef = []
-    for
-    x in
-    self.
-    complexDenominatorTheta:
-    if random.uniform(0, 1) <
-    chanceOfMutation:
-            x
-    *= 1 + random.uniform(-mutationSize/2, mutationSize/2)
-    newCoef.
-    append(x)
-    self.
-    complexDenominatorTheta = newCoef
-    self.
-
-    computeRootsFromParams()
-
-
-    def crossover(self, other)
-
-    :
-    newNumeratorCoef = []
-    for x,
-    y in
-    zip(self
-    .numeratorCoef, other.numeratorCoef):
-    newNumeratorCoef.
-    append(x
-    if random.uniform(0, 1) < 0.5 else y)
-    newRealDenominatorRoots = []
-    for x,
-    y in
-    zip(self
-    .realDenominatorRoots, other.realDenominatorRoots):
-    newRealDenominatorRoots.
-    append(x
-    if random.uniform(0, 1) < 0.5 else y)
-    newComplexDenominatorRoots = []
-    for x,
-    y in
-    zip(self
-    .complexDenominatorRoots, other.complexDenominatorRoots):
-    newComplexDenominatorRoots.
-    append(x
-    if random.uniform(0, 1) < 0.5 else y)
-    return
-
-    DiskRational(newNumeratorCoef, newRealDenominatorRoots, newComplexDenominatorRoots)
+    DiskRational crossover(DiskRational<T> const & other) {
+        float randInv = 1.0 / RAND_MAX;
+        vector<T> newNumeratorCoef;
+        newNumeratorCoef.reserve(numeratorCoef.size());
+        for(int i = 0; i < numeratorCoef.size(); ++i) {
+            newNumeratorCoef.push_back(rand()*randInv < 0.5 ? numeratorCoef[i] : other.numeratorCoef[i]);
+        }
+        vector<complex<T>> newDenominatorRoots;
+        newDenominatorRoots.reserve(denominatorRoots.size());
+        for(int i = 0; i < denominatorRoots.size(); ++i) {
+            newDenominatorRoots.push_back(rand()*randInv < 0.5 ? denominatorRoots[i] : other.denominatorRoots[i]);
+        }
+        return DiskRational(newNumeratorCoef, newDenominatorRoots)
+    }
 };
 
 #endif //CPP_DISKRATIONAL_H

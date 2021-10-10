@@ -19,7 +19,9 @@ namespace Util {
         return ret;
     }
 
-
+linspace
+argmin
+objective
 }
 
 #endif //CPP_UTIL_H
