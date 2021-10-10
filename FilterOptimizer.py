@@ -390,7 +390,7 @@ if __name__ == '__main__':
     numComplexDenominatorRoots = 20
 
     grid = numpy.linspace(0, sampleRate/2, gridPoints)
-    if True:
+    if False:
         c = Chebyshev.Chebyshev.projectStep(stepMin, stepMax, 0, sampleRate/2, gain, isFilter, degree)
         filterFunc = c.evaluateOnScale(grid, 0, sampleRate/2)
     else:
@@ -424,7 +424,7 @@ if __name__ == '__main__':
         angleCoord = numpy.linspace(0, math.pi, 20)
         radiusGrid, thetaGrid = numpy.meshgrid(radiusCoord, angleCoord)
         objGrid = numpy.zeros((len(thetaGrid), len(radiusGrid)))
-        for insertedPointIdx in range(25):
+        for insertedPointIdx in range(250):
             insertInNumerator = insertedPointIdx % 2 == 0
             minObj = 2000
             minFreq  =0

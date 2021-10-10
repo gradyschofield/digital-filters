@@ -10,12 +10,7 @@ import BSpline
 
 class DiskRational(BaseRational.BaseRational):
     maxNumeratorRadius = 1.2
-    maxDenominatorRadius = 0.2
-    numeratorCoef = []
-
-    realDenominatorX = []
-    complexDenominatorX = []
-    complexDenominatorTheta = []
+    maxDenominatorRadius = 0.5
 
     def __init__(self, numeratorCoef, realDenominatorRoots, complexDenominatorRoots):
         self.numeratorCoef = list(numeratorCoef)
