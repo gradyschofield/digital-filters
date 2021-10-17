@@ -240,9 +240,32 @@ DiskRational<T> geneticOptimizer(vector<T> const & grid, vector<T> const & filte
     return move(population[0].first);
 }
 
+template<typename T>
+tuple<complex<T>, T> minimizeOnGrid(vector<T> const & grid, vector<T> const & filterFunc,
+                                    int sampleRate, DiskRational<T> const & rational, bool insertNumerator) {
+    T minObj = numeric_limits<T>::max();
+    complex<T> minRoot;
+    for (T theta: Util::linspace<T>(0, M_PI, 20)) {
+        for (T radius: Util::linspace<T>(0.01, insertNumerator ? 1.1 : 0.5, 20)) {
+            complex<T> root = Util::toComplex(radius, theta);
+            T obj;
+            if (insertNumerator) {
+                obj = Util::objective(grid, filterFunc, sampleRate, rational, {root});
+            } else {
+                obj = Util::objective(grid, filterFunc, sampleRate, rational, {}, {root});
+            }
+            if (obj < minObj) {
+                minObj = obj;
+                minRoot = root;
+            }
+        }
+    }
+    return forward_as_tuple(minRoot, minObj);
+}
+
 int main() {
 
-    typedef float T;
+    typedef double T;
 
     int sampleRate = 96000;
     int numGridPoints = 200;
@@ -252,43 +275,29 @@ int main() {
     vector<T> grid = Util::linspace<T>(0, sampleRate/2, numGridPoints);
     BSpline<T> splineBasis(grid, BSpline<T>::getDefaultKnots());
 
-    vector<T> filterFunc = splineBasis.getBasis(10);
+    vector<T> filterFunc = splineBasis.getBasis(8);
 
     DiskRational<T> rational = geneticOptimizer(grid, filterFunc, sampleRate, 5, 2000, 200, numNumeratorRoots, numDenominatorRoots);
     ofstream rootTalk("rootTalk");
     auto startTime = chrono::high_resolution_clock::now();
     int iterations = 0;
-    bool insertNumerator = true;
     while(true) {
         rational = lineSearch(grid, filterFunc, sampleRate, 1E-5, 10, 10, 1E-7, rational, true);
-        T minObj = numeric_limits<T>::max();
-        complex<T> minRoot;
-        for (T theta: Util::linspace<T>(0, M_PI, 20)) {
-            for (T radius: Util::linspace<T>(0.01, insertNumerator ? 1.1 : 0.5, 20)) {
-                complex<T> root = Util::toComplex(radius, theta);
-                T obj;
-                if (insertNumerator) {
-                    obj = Util::objective(grid, filterFunc, sampleRate, rational, {root});
-                } else {
-                    obj = Util::objective(grid, filterFunc, sampleRate, rational, {}, {root});
-                }
-                if (obj < minObj) {
-                    minObj = obj;
-                    minRoot = root;
-                }
-            }
-        }
-        if (insertNumerator) {
-            rational.incorporateRoots({minRoot}, {});
+        complex<T> minNumeratorRoot, minDenominatorRoot;
+        T minNumeratorObj, minDenominatorObj;
+        tie(minNumeratorRoot, minNumeratorObj) = minimizeOnGrid(grid, filterFunc, sampleRate, rational, true);
+        tie(minDenominatorRoot, minDenominatorObj) = minimizeOnGrid(grid, filterFunc, sampleRate, rational, false);
+        if (minNumeratorObj < minDenominatorObj) {
+            rational.incorporateRoots({minNumeratorRoot}, {});
         } else {
-            rational.incorporateRoots({}, {minRoot});
+            rational.incorporateRoots({}, {minDenominatorRoot});
         }
-        insertNumerator = !insertNumerator;
         ++iterations;
         Util::writePlotData(rational.plotData(grid, sampleRate), "approx", iterations);
         auto endTime = chrono::high_resolution_clock::now();
         double iterationsPerSecond = numDerivativesCalculated / (double)chrono::duration_cast<chrono::nanoseconds>(endTime - startTime).count();
-        rootTalk << minObj << " iterations per second " << 1E9*iterationsPerSecond << endl;
+        rootTalk << min(minNumeratorObj, minDenominatorObj) << " iterations per second " << 1E9*iterationsPerSecond <<
+            " inserting in " << (minNumeratorObj < minDenominatorObj ? "numerator" : "denominator") << endl;
     }
 
     return 0;
