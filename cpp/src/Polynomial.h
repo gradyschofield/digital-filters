@@ -8,7 +8,7 @@
 #include<vector>
 #include<complex>
 
-#include<util.h>
+#include<Util.h>
 
 using namespace std;
 
@@ -21,28 +21,30 @@ public:
     {
     }
 
-    /*
-    Polynomial<T> mulMonomial(double a) {
+    Polynomial(vector<T> const & coef)
+        : coefficients(coef)
+    {
+    }
+
+    Polynomial<T> mulMonomial(T a) {
         vector<T> newCoef = Util::shiftUp(coefficients);
         for(int i = 0; i < newCoef.size() - 1; ++i) {
             newCoef[i] += a * newCoef[i+1];
         }
-        return Polynomial(move(newCoef));
+        return Polynomial<T>(move(newCoef));
     }
 
     static Polynomial<T> fromRoots(vector<T> const & roots) {
-        Polynomial ret({1});
+        Polynomial<T> ret({1});
         for(T r : roots) {
-            ret = ret.mulMonomial(-r)
+            ret = ret.mulMonomial(-r);
         }
         return ret;
     }
-     */
 
-    Polynomial<T> incorporateRoots(vector<complex<T>> roots) {
+    void incorporateRoots(vector<complex<T>> roots) {
         for(complex<T> r : roots) {
-            vector<T> newCoef;
-            newCoef.reserve(2 + coefficients.size());
+            vector<T> newCoef(2 + coefficients.size());
             for (int i = 0; i < coefficients.size(); ++i) {
                 newCoef[i + 2] = coefficients[i];
                 newCoef[i + 1] -= 2 * r.real() * coefficients[i];
@@ -55,6 +57,26 @@ public:
     vector<T> getCoefficients() const {
         return coefficients;
     }
+
+    static Polynomial<T> filterPolynomialFromRoots(int numComplex, T radius) {
+        vector<complex<T>> roots;
+        for(int i = 0; i < numComplex; ++i) {
+            complex<T> r = Util::randomComplex(radius);
+            roots.push_back(r);
+            roots.push_back(conj(r));
+        }
+        return Polynomial<complex<T>>::fromRoots(roots).template realifyCoef<T>();
+    }
+
+    template<typename R>
+    Polynomial<R> realifyCoef() const {
+        vector<R> newCoef;
+        for(T z : coefficients) {
+            newCoef.push_back(Util::real(z));
+        }
+        return Polynomial<R>(move(newCoef));
+    }
+
 };
 
 #endif //CPP_POLYNOMIAL_H
