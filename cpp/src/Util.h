@@ -6,6 +6,7 @@
 #define CPP_UTIL_H
 
 #include<vector>
+#include<sstream>
 #include<random>
 #include<limits>
 
@@ -53,6 +54,17 @@ namespace Util {
     template<typename T>
     T real(T z) {
         return z;
+    }
+
+    vector<pair<int, int>> partitionArray(int size, int numPartitions) {
+        vector<pair<int, int>> ret;
+        int start = 0;
+        for(int i = 0; i < numPartitions; ++i) {
+            int end = start + (size/numPartitions) + (i < size%numPartitions ? 1: 0);
+            ret.emplace_back(start, end);
+            start = end;
+        }
+        return ret;
     }
 
     template<typename T, typename R>
@@ -135,6 +147,19 @@ namespace Util {
             complexRoots.push_back(randomComplex(maxRadius));
         }
         return complexRoots;
+    }
+
+    template<typename T>
+    void writePlotData(vector<pair<T, T>> const & f, string filename, int idx = -1) {
+        stringstream filenameStr;
+        filenameStr << filename;
+        if(idx >= 0) {
+            filenameStr << idx;
+        }
+        ofstream ofs(filenameStr.str());
+        for(pair<T, T> const & p : f) {
+            ofs << p.first << " " << p.second << "\n";
+        }
     }
 }
 

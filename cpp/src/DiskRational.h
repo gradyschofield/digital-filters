@@ -6,9 +6,10 @@
 #define CPP_DISKRATIONAL_H
 
 #include<vector>
-#include<Complex.h>
+#include<thread>
 #include<cmath>
 
+#include<Complex.h>
 #include"Polynomial.h"
 #include"Util.h"
 
@@ -178,9 +179,10 @@ public:
         return ret;
     }
 
+#if 1
     tuple<vector<T>, T> derivative(vector<T> const & grid, vector<T> const & filter, int sampleRate) {
         vector<T> deriv(numeratorCoef.size() + denominatorX.size() + denominatorTheta.size());
-        for(int i = 0; i < grid.size(); ++i) {
+        for (int i = 0; i < grid.size(); ++i) {
             T freq = grid[i];
             T filterValue = filter[i];
             complex<T> z = exp(complex<T>(0, -2 * M_PI * freq / sampleRate));
@@ -189,31 +191,95 @@ public:
             T f = abs(y);
             T prefactor = 2 * (f - filterValue) / f;
             int k = 0;
-            for(int i = 0; i < numeratorCoef.size(); ++i) {
+            for (int i = 0; i < numeratorCoef.size(); ++i) {
                 deriv[k] += prefactor * (conj(y) * Util::pow(z, i) / d).real();
                 k += 1;
             }
-            for(int i = 0; i < denominatorX.size(); ++i) {
+            for (int i = 0; i < denominatorX.size(); ++i) {
                 T x = denominatorX[i];
                 T theta = denominatorTheta[i];
                 complex<T> r = maxDenominatorRadius / (1 + exp(-x)) * exp(complex<T>(0, theta));
                 complex<T> z2 = z - r;
                 complex<T> z2rconj = z - conj(r);
-                complex<T> dX = maxDenominatorRadius * exp(-x) / (T)pow(1 + exp(-x), 2) * exp(complex<T>(0, theta));
-                complex<T> dTheta = maxDenominatorRadius * complex<T>(0, 1) * exp(complex<T>(0, theta)) / (1 + exp(-x));
+                complex<T> dX =
+                        maxDenominatorRadius * exp(-x) / (T) pow(1 + exp(-x), 2) * exp(complex<T>(0, theta));
+                complex<T> dTheta =
+                        maxDenominatorRadius * complex<T>(0, 1) * exp(complex<T>(0, theta)) / (1 + exp(-x));
                 deriv[k] += prefactor * (conj(y) * y * (dX / z2 + conj(dX) / z2rconj)).real();
                 deriv[k + 1] += prefactor * (conj(y) * y * (dTheta / z2 + conj(dTheta) / z2rconj)).real();
                 k += 2;
             }
         }
-        T numGridPointsInv = 1.0 / grid.size();
         T norm = 0;
-        for(T & x : deriv) {
+        T numGridPointsInv = 1.0 / grid.size();
+        for (T &x: deriv) {
             x *= numGridPointsInv;
-            norm += x*x;
+            norm += x * x;
         }
         return forward_as_tuple(move(deriv), sqrt(norm));
     }
+#else
+    tuple<vector<T>, T> derivative(vector<T> const & grid, vector<T> const & filter, int sampleRate) {
+        int numThreads = thread::hardware_concurrency();
+        vector<pair<int,int>> threadLimits = Util::partitionArray(grid.size(), numThreads);
+        vector<vector<T>> derivArrays;
+        for(int threadIdx = 0; threadIdx < numThreads; ++threadIdx) {
+            derivArrays.emplace_back(numeratorCoef.size() + denominatorX.size() + denominatorTheta.size());
+        }
+        vector<thread> threads;
+        for(int threadIdx = 0; threadIdx < numThreads; ++threadIdx) {
+            vector<T> & deriv = derivArrays[threadIdx];
+            pair<int, int> limits = threadLimits[threadIdx];
+            threads.emplace_back([&]() {
+                for (int i = limits.first; i < limits.second; ++i) {
+                    T freq = grid[i];
+                    T filterValue = filter[i];
+                    complex<T> z = exp(complex<T>(0, -2 * M_PI * freq / sampleRate));
+                    complex<T> y = evaluate(z);
+                    complex<T> d = evaluateDenominator(z);
+                    T f = abs(y);
+                    T prefactor = 2 * (f - filterValue) / f;
+                    int k = 0;
+                    for (int i = 0; i < numeratorCoef.size(); ++i) {
+                        deriv[k] += prefactor * (conj(y) * Util::pow(z, i) / d).real();
+                        k += 1;
+                    }
+                    for (int i = 0; i < denominatorX.size(); ++i) {
+                        T x = denominatorX[i];
+                        T theta = denominatorTheta[i];
+                        complex<T> r = maxDenominatorRadius / (1 + exp(-x)) * exp(complex<T>(0, theta));
+                        complex<T> z2 = z - r;
+                        complex<T> z2rconj = z - conj(r);
+                        complex<T> dX =
+                                maxDenominatorRadius * exp(-x) / (T) pow(1 + exp(-x), 2) * exp(complex<T>(0, theta));
+                        complex<T> dTheta =
+                                maxDenominatorRadius * complex<T>(0, 1) * exp(complex<T>(0, theta)) / (1 + exp(-x));
+                        deriv[k] += prefactor * (conj(y) * y * (dX / z2 + conj(dX) / z2rconj)).real();
+                        deriv[k + 1] += prefactor * (conj(y) * y * (dTheta / z2 + conj(dTheta) / z2rconj)).real();
+                        k += 2;
+                    }
+                }
+                T numGridPointsInv = 1.0 / grid.size();
+                for (T &x: deriv) {
+                    x *= numGridPointsInv;
+                }
+            });
+        }
+        for(thread & t : threads) t.join();
+        vector<T> & deriv = derivArrays[0];
+        for(int threadIdx = 1; threadIdx < numThreads; ++threadIdx) {
+            vector<T> const & tmp = derivArrays[threadIdx];
+            for(int i = 0; i < deriv.size(); ++i) {
+                deriv[i] += tmp[i];
+            }
+        }
+        T norm = 0;
+        for(T & x : deriv) {
+            norm += x * x;
+        }
+        return forward_as_tuple(move(deriv), sqrt(norm));
+    }
+#endif
 
     void mutate(float chanceOfMutation, float mutationSize) {
         for(T &x : numeratorCoef) {
@@ -246,6 +312,20 @@ public:
             newDenominatorRoots.push_back(Util::rand::uniformReal() < 0.5 ? denominatorRoots[i] : other.denominatorRoots[i]);
         }
         return DiskRational(newNumeratorCoef, newDenominatorRoots);
+    }
+
+    vector<pair<T, T>> plotData(vector<T> const & grid, int sampleRate) {
+        vector<pair<T, T>> ret(grid.size());
+        T sampleRateInv = 1.0 / (sampleRate + 2);
+        int numGridPoints = grid.size();
+        for (int i = 0; i < numGridPoints; ++i) {// freq, filterValue in zip(grid, filter):
+            T freq = grid[i];
+            complex<T> x = exp(complex<T>(0, -2 * M_PI * freq / sampleRate));
+            complex<T> y = evaluate(x);
+            T f = abs(y);
+            ret[i] = make_pair(freq, f);
+        }
+        return ret;
     }
 };
 

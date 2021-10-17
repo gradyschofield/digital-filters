@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <chrono>
 
 #include<DiskRational.h>
 #include<Util.h>
@@ -30,6 +31,7 @@ void update(r, filter, sampleRate) {
 }
  */
 
+long numDerivativesCalculated = 0;
 
 template<typename T>
 DiskRational<T> lineSearch(vector<T> const & grid, vector<T> const & filter, int sampleRate, float stagnationTolerance,
@@ -41,6 +43,7 @@ DiskRational<T> lineSearch(vector<T> const & grid, vector<T> const & filter, int
     vector<T> deriv, deriv2, nextDeriv;
     T derivNorm, derivNorm2, nextDerivNorm;
     tie(deriv, derivNorm) = r.derivative(grid, filter, sampleRate);
+    ++numDerivativesCalculated;
     vector<T> stepDirection = deriv;
     T stepDirectionNorm = derivNorm;
     T maxStep = maxStepLength;
@@ -92,6 +95,7 @@ DiskRational<T> lineSearch(vector<T> const & grid, vector<T> const & filter, int
                 cout << "Armijo limit would be compared to " << t1 << " h: " << h << " obj: " << objs.back() << "\n";
                 if (t1 >= armijoLimit) {
                     tie(deriv2, derivNorm2) = newPoint.derivative(grid, filter, sampleRate);
+                    ++numDerivativesCalculated;
                     T t2 = VecUtil::dot(stepDirection, deriv2) / stepDirectionNorm;
                     cout << "***Curvature limit would be compared to " << t2 << " h: " << h << " obj: " << objs.back()
                          << "\n";
@@ -131,6 +135,7 @@ DiskRational<T> lineSearch(vector<T> const & grid, vector<T> const & filter, int
         T newDot = Util::innerProduct(grid, filter, sampleRate, r);
         T newObj = Util::objective(grid, filter, sampleRate, r);
         tie(nextDeriv, nextDerivNorm) = r.derivative(grid, filter, sampleRate);
+        ++numDerivativesCalculated;
         if(bfgs) {
             vector<T> y = VecUtil::subtract(nextDeriv, deriv);
             vector<T> s = VecUtil::subtract(r.getCoordinates(), oldR.getCoordinates());
@@ -247,12 +252,14 @@ int main() {
     vector<T> grid = Util::linspace<T>(0, sampleRate/2, numGridPoints);
     BSpline<T> splineBasis(grid, BSpline<T>::getDefaultKnots());
 
-    vector<T> filterFunc = splineBasis.getBasis(7);
+    vector<T> filterFunc = splineBasis.getBasis(10);
 
     DiskRational<T> rational = geneticOptimizer(grid, filterFunc, sampleRate, 5, 2000, 200, numNumeratorRoots, numDenominatorRoots);
     ofstream rootTalk("rootTalk");
+    auto startTime = chrono::high_resolution_clock::now();
+    int iterations = 0;
+    bool insertNumerator = true;
     while(true) {
-        bool insertNumerator = true;
         rational = lineSearch(grid, filterFunc, sampleRate, 1E-5, 10, 10, 1E-7, rational, true);
         T minObj = numeric_limits<T>::max();
         complex<T> minRoot;
@@ -277,7 +284,11 @@ int main() {
             rational.incorporateRoots({}, {minRoot});
         }
         insertNumerator = !insertNumerator;
-        rootTalk << minObj << endl;
+        ++iterations;
+        Util::writePlotData(rational.plotData(grid, sampleRate), "approx", iterations);
+        auto endTime = chrono::high_resolution_clock::now();
+        double iterationsPerSecond = numDerivativesCalculated / (double)chrono::duration_cast<chrono::nanoseconds>(endTime - startTime).count();
+        rootTalk << minObj << " iterations per second " << 1E9*iterationsPerSecond << endl;
     }
 
     return 0;
