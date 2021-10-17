@@ -5,6 +5,14 @@
 #ifndef CPP_VECUTIL_H
 #define CPP_VECUTIL_H
 
+
+#include<stdexcept>
+#include<typeinfo>
+
+#include<BLAS.h>
+
+using namespace std;
+
 namespace VecUtil {
     template<typename T>
     T norm(vector<T> const & v) {
@@ -15,6 +23,7 @@ namespace VecUtil {
         return sqrt(n);
     }
 
+    /*
     template<typename T>
     T dot(vector<complex<T>> const & v1, vector<complex<T>> const &v2) {
         T d = 0;
@@ -23,6 +32,7 @@ namespace VecUtil {
         }
         return d;
     }
+     */
 
     template<typename T>
     T dot(vector<T> const & v1, vector<T> const &v2) {
@@ -54,7 +64,7 @@ namespace VecUtil {
 
     template<typename T>
     class Matrix {
-        int numRows, numCols;
+        int numRows, numCols, leadingDimension;
         vector<T> matrix;
 
         int index(int i, int j) const {
@@ -101,10 +111,15 @@ namespace VecUtil {
 
         Matrix<T> multiply(Matrix<T> const & m) const {
             Matrix<T> ret(numRows, numCols);
-            for(int i = 0; i < numRows; ++i) {
-                for (int j = 0; j < numCols; ++j) {
-                    for (int k = 0; k < numCols; ++k) {
-                        ret.matrix[index(i,j)] += matrix[index(i,k)] * m.matrix[index(k,j)];
+            if(true) {
+                blasMultiply(numRows, m.numCols, numCols, (T)1, matrix.data(), numRows, m.matrix.data(), m.numRows,
+                             (T)0, ret.matrix.data(), numRows);
+            } else {
+                for (int i = 0; i < numRows; ++i) {
+                    for (int j = 0; j < numCols; ++j) {
+                        for (int k = 0; k < numCols; ++k) {
+                            ret.matrix[index(i, j)] += matrix[index(i, k)] * m.matrix[index(k, j)];
+                        }
                     }
                 }
             }
@@ -113,10 +128,10 @@ namespace VecUtil {
 
         vector<T> multiply(vector<T> const & v) const {
             vector<T> ret(numRows);
-            for(int i = 0; i < numRows; ++i) {
+            for (int i = 0; i < numRows; ++i) {
                 T d = 0;
                 for (int j = 0; j < numCols; ++j) {
-                    d += matrix[index(i,j)] * v[j];
+                    d += matrix[index(i, j)] * v[j];
                 }
                 ret[i] = d;
             }

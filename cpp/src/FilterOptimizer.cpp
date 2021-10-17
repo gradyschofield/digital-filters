@@ -237,7 +237,7 @@ DiskRational<T> geneticOptimizer(vector<T> const & grid, vector<T> const & filte
 
 int main() {
 
-    typedef double T;
+    typedef float T;
 
     int sampleRate = 96000;
     int numGridPoints = 200;
@@ -247,7 +247,7 @@ int main() {
     vector<T> grid = Util::linspace<T>(0, sampleRate/2, numGridPoints);
     BSpline<T> splineBasis(grid, BSpline<T>::getDefaultKnots());
 
-    vector<T> filterFunc = splineBasis.getBasis(8);
+    vector<T> filterFunc = splineBasis.getBasis(7);
 
     DiskRational<T> rational = geneticOptimizer(grid, filterFunc, sampleRate, 5, 2000, 200, numNumeratorRoots, numDenominatorRoots);
     ofstream rootTalk("rootTalk");

@@ -6,7 +6,7 @@
 #define CPP_DISKRATIONAL_H
 
 #include<vector>
-#include<complex>
+#include<Complex.h>
 #include<cmath>
 
 #include"Polynomial.h"

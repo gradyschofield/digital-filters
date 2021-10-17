@@ -6,7 +6,7 @@
 #define CPP_POLYNOMIAL_H
 
 #include<vector>
-#include<complex>
+#include<Complex.h>
 
 #include<Util.h>
 
