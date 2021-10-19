@@ -263,19 +263,52 @@ tuple<complex<T>, T> minimizeOnGrid(vector<T> const & grid, vector<T> const & fi
     return forward_as_tuple(minRoot, minObj);
 }
 
+template<typename T>
+vector<T> interpolate(vector<T> const & coarseGrid, vector<T> const & coarseFunc, vector<T> const & fineGrid) {
+    vector<T> fineFunc(fineGrid.size());
+    int coarseGridIdx = 0;
+    for(int i = 0; i < fineGrid.size(); ++i) {
+        T x = fineGrid[i];
+        while(x > coarseGrid[coarseGridIdx+1]) {
+            ++coarseGridIdx;
+        }
+        T alpha = (x - coarseGrid[coarseGridIdx]) / (coarseGrid[coarseGridIdx+1] - coarseGrid[coarseGridIdx]);
+        fineFunc[i] = (1-alpha) * coarseFunc[coarseGridIdx] + alpha * coarseFunc[coarseGridIdx+1];
+    }
+    return fineFunc;
+}
+
 int main() {
 
     typedef double T;
 
     int sampleRate = 96000;
-    int numGridPoints = 200;
+    int numGridPoints = 50;
     int numNumeratorRoots = 20;
     int numDenominatorRoots = 20;
+    int basisIdx = 8;
 
+    for(; numGridPoints < 10000; numGridPoints += 50) {
+        vector<T> grid = Util::linspace<T>(0, sampleRate/2, numGridPoints);
+        BSpline<T> splineBasis(grid, BSpline<T>::getDefaultKnots());
+        vector<T> filterFunc = splineBasis.getBasis(basisIdx);
+        vector<T> fineGrid = Util::linspace<T>(0, sampleRate/2, numGridPoints + 50);
+        BSpline<T> fineSplineBasis(fineGrid, BSpline<T>::getDefaultKnots());
+        vector<T> fineFilterFunc = fineSplineBasis.getBasis(basisIdx);
+        vector<T> interpolatedFunc = interpolate(grid, filterFunc, fineGrid);
+        T n = 0;
+        for(int j = 0; j < fineGrid.size(); ++j) {
+            n += pow(fineFilterFunc[j] - interpolatedFunc[j], 2);
+        }
+        n = sqrt(n / fineGrid.size());
+        cout << "fine grid " << numGridPoints << " norm: " << n << "\n";
+        if(n < 5E-4) {
+            break;
+        }
+    }
     vector<T> grid = Util::linspace<T>(0, sampleRate/2, numGridPoints);
     BSpline<T> splineBasis(grid, BSpline<T>::getDefaultKnots());
-
-    vector<T> filterFunc = splineBasis.getBasis(8);
+    vector<T> filterFunc = splineBasis.getBasis(basisIdx);
 
     DiskRational<T> rational = geneticOptimizer(grid, filterFunc, sampleRate, 5, 2000, 200, numNumeratorRoots, numDenominatorRoots);
     ofstream rootTalk("rootTalk");
@@ -294,6 +327,9 @@ int main() {
         }
         ++iterations;
         Util::writePlotData(rational.plotData(grid, sampleRate), "approx", iterations);
+        Util::writePlotData(rational.plotResidualData(grid, filterFunc, sampleRate), "residual", iterations);
+        Util::writePlotData(rational.getNumeratorRoots(), "numeratorRoots", iterations);
+        Util::writePlotData(rational.getDenominatorRoots(), "denominatorRoots", iterations);
         auto endTime = chrono::high_resolution_clock::now();
         double iterationsPerSecond = numDerivativesCalculated / (double)chrono::duration_cast<chrono::nanoseconds>(endTime - startTime).count();
         rootTalk << min(minNumeratorObj, minDenominatorObj) << " iterations per second " << 1E9*iterationsPerSecond <<

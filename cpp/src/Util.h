@@ -111,11 +111,14 @@ namespace Util {
     template<typename T>
     vector<T> linspace(T min, T max, int num = 50, bool endpoint = true) {
         vector<T> ret(num);
-        T inc = endpoint ? (max - min) / (num - 2) : (max - min) / (num - 1);
+        T inc = endpoint ? (max - min) / (num - 1) : (max - min) / num;
         T val = min;
         for(int i = 0; i < num; ++i) {
             ret[i] = val;
             val += inc;
+        }
+        if(endpoint) {
+            ret.back() = max; // avoid any roundoff error in endpoint.
         }
         return ret;
     }
@@ -159,6 +162,19 @@ namespace Util {
         ofstream ofs(filenameStr.str());
         for(pair<T, T> const & p : f) {
             ofs << p.first << " " << p.second << "\n";
+        }
+    }
+
+    template<typename T>
+    void writePlotData(vector<complex<T>> const & f, string filename, int idx = -1) {
+        stringstream filenameStr;
+        filenameStr << filename;
+        if(idx >= 0) {
+            filenameStr << idx;
+        }
+        ofstream ofs(filenameStr.str());
+        for(complex<T> const & p : f) {
+            ofs << p.real() << " " << p.imag() << "\n";
         }
     }
 }

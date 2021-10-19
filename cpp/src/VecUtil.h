@@ -73,12 +73,12 @@ namespace VecUtil {
 
     public:
         Matrix(int numRows, int numCols)
-                : numRows(numRows), numCols(numCols), matrix(numRows * numCols)
+                : numRows(numRows), numCols(numCols), leadingDimension(numRows), matrix(numRows * numCols)
         {
         }
 
         Matrix(int numRows)
-                : numRows(numRows), numCols(numRows), matrix(numRows * numCols)
+                : numRows(numRows), numCols(numRows), leadingDimension(numRows), matrix(numRows * numCols)
         {
         }
 
@@ -107,6 +107,10 @@ namespace VecUtil {
                 }
             }
             return ret;
+        }
+
+        vector<complex<T>> eigenvalues() const {
+            return blasEigenvalues(numRows, matrix.data(), leadingDimension);
         }
 
         Matrix<T> multiply(Matrix<T> const & m) const {

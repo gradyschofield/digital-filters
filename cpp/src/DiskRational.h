@@ -12,6 +12,8 @@
 #include<Complex.h>
 #include"Polynomial.h"
 #include"Util.h"
+#include"VecUtil.h"
+#include"BLAS.h"
 
 using namespace std;
 
@@ -49,55 +51,32 @@ public:
         tie(denominatorX, denominatorTheta) = computeParamsFromRootsHelper(denominatorRoots, maxDenominatorRadius);
     }
 
-    /*
-    def getRoots(self)
+    vector<complex<T>> getNumeratorRoots() const {
+        int n = numeratorCoef.size() - 1;
+        VecUtil::Matrix<T> mat(n);
+        mat.fill([&](int i, int j) {
+            if(i == 0) {
+                return - numeratorCoef[n-1-j] / numeratorCoef.back();
+            } else if(i == j + 1) {
+                return (T)1;
+            } else {
+                return (T)0;
+            }
+        });
+        return mat.eigenvalues();
+    }
 
-    :
-    rc = list(self.numeratorCoef)
-    rc.
-
-    reverse()
-
-    numeratorRoots = numpy.roots(rc)
-    denominatorRoots =
-    [
-    complex(x,
-    0) for
-    x in
-    self.realDenominatorRoots]
-    denominatorRoots.
-    extend(self
-    .complexDenominatorRoots)
-    return numeratorRoots,
-    denominatorRoots
-
-            def
-    getAllRoots(self):
-            rc = list(self.numeratorCoef)
-    rc.
-
-    reverse()
-
-    numeratorRoots = numpy.roots(rc)
-    denominatorRoots =
-    [
-    complex(x,
-    0) for
-    x in
-    self.realDenominatorRoots]
-    denominatorRoots.
-    extend(self
-    .complexDenominatorRoots)
-    denominatorRoots.extend([z.
-
-    conjugate()
-
-    for
-    z in
-    self.complexDenominatorRoots])
-    return numeratorRoots, denominatorRoots
-
-     */
+    vector<complex<T>> getDenominatorRoots() const {
+        vector<complex<T>> ret;
+        for(int i = 0; i < denominatorX.size(); ++i) {
+            T x = denominatorX[i];
+            T theta = denominatorTheta[i];
+            complex<T> r = maxDenominatorRadius / (1 + exp(-x)) * exp(complex<T>(0, theta));
+            ret.push_back(r);
+            ret.push_back(conj(r));
+        }
+        return ret;
+    }
 
     void computeRootsFromParams() {
         vector<complex<T>> roots;
@@ -326,6 +305,15 @@ public:
             ret[i] = make_pair(freq, f);
         }
         return ret;
+    }
+
+    vector<pair<T, T>> plotResidualData(vector<T> const & grid, vector<T> const & filter, int sampleRate) {
+        vector<pair<T,T>> approx = plotData(grid, sampleRate);
+        int numGridPoints = grid.size();
+        for (int i = 0; i < numGridPoints; ++i) {
+            approx[i].second -= filter[i];
+        }
+        return approx;
     }
 };
 
