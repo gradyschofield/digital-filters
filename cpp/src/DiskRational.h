@@ -10,6 +10,7 @@
 #include<cmath>
 
 #include<Complex.h>
+#include<Optimizable.h>
 #include"Polynomial.h"
 #include"Util.h"
 #include"VecUtil.h"
@@ -18,9 +19,9 @@
 using namespace std;
 
 template<typename T>
-class DiskRational {
+class DiskRational : public Optimizable<DiskRational, T> {
     static const T constexpr maxNumeratorRadius = 1.2;
-    static const T constexpr maxDenominatorRadius = 0.5;
+    static const T constexpr maxDenominatorRadius = 0.2;
 
     vector<T> numeratorCoef;
     vector<T> denominatorX;
@@ -93,7 +94,7 @@ public:
         return DiskRational(numerator.getCoefficients(), denominatorRoots);
     }
 
-    DiskRational<T> copy() const {
+    DiskRational<T> copy() const override {
         return DiskRational<T>(numeratorCoef, denominatorRoots);
     }
 
@@ -125,7 +126,7 @@ public:
         return n / d;
     }
 
-    complex<T> evaluateDenominator(complex<T> x) {
+    complex<T> evaluateDenominator(complex<T> x) const {
         complex<T> d = 1;
         for(complex<T> r : denominatorRoots) {
             d *= x - r;
@@ -134,7 +135,7 @@ public:
         return d;
     }
 
-    void updateCoef(vector<T> const & deriv, T rate) {
+    void updateCoordinates(vector<T> const & deriv, T rate) override {
         int k = 0;
         for (T & c : numeratorCoef) {
             c -= rate * deriv[k];
@@ -150,7 +151,7 @@ public:
         computeRootsFromParams();
     }
 
-    vector<T> getCoordinates() {
+    vector<T> getCoordinates() const override {
         vector<T> ret;
         std::copy(begin(numeratorCoef), end(numeratorCoef), back_inserter(ret));
         std::copy(begin(denominatorX), end(denominatorX), back_inserter(ret));
@@ -159,7 +160,7 @@ public:
     }
 
 #if 1
-    tuple<vector<T>, T> derivative(vector<T> const & grid, vector<T> const & filter, int sampleRate) {
+    tuple<vector<T>, T> derivative(vector<T> const & grid, vector<T> const & filter, int sampleRate) const {
         vector<T> deriv(numeratorCoef.size() + denominatorX.size() + denominatorTheta.size());
         for (int i = 0; i < grid.size(); ++i) {
             T freq = grid[i];
@@ -315,6 +316,7 @@ public:
         }
         return approx;
     }
+
 };
 
 #endif //CPP_DISKRATIONAL_H

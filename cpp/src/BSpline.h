@@ -45,6 +45,10 @@ public:
         return c1 + c2;
     }
 
+    static int getNumBases(int numKnots, int degree) {
+        return numKnots-degree-1;
+    }
+
     BSpline(vector<T> const & grid, vector<T> const & knotsParam, int degree = 3)
         : degree(degree), knots(knotsParam)
     {
@@ -52,7 +56,7 @@ public:
             knots.insert(begin(knots), knots[0]);
             knots.push_back(knots.back());
         }
-        int numBases = knots.size()-degree-1;
+        int numBases = getNumBases(knots.size(), degree);
         for(int i = 0; i < numBases; ++i) {
             auto basis = [&](T x){
                 return BSpline::evaluateSpline(i, degree, knots, x);
@@ -65,6 +69,51 @@ public:
         }
     }
 
+    double evaluate(int i, T x) const {
+        return evaluateSpline(i, degree, knots, x);
+    }
+
+    double mass(int basisIdx) const {
+        int numPoints = 1000;
+        T start = knots[basisIdx];
+        T end = knots[basisIdx + degree + 1];
+        T h = (end - start) / numPoints;
+        T mass = 0;
+        T x = start + h;
+        for(int j = 0; j < numPoints; ++j) {
+            mass += evaluate(basisIdx, x);
+            x += h;
+        }
+        return mass * h;
+    }
+
+    vector<pair<T, T>> plotData(vector<T> const & grid, int basisIdx) {
+        vector<pair<T, T>> ret;
+        ret.reserve(grid.size());
+        for(T x : grid) {
+            ret.emplace_back(x, evaluate(basisIdx, x));
+        }
+        return ret;
+    }
+
+    T max(int basisIdx) const {
+        int numPoints = 1000;
+        T start = knots[basisIdx];
+        T end = knots[basisIdx + degree + 1];
+        T h = (end - start) / numPoints;
+        T maxValue = 0;
+        T argMax = 0;
+        T x = start + h;
+        for(int j = 0; j < numPoints; ++j) {
+            T y = evaluate(basisIdx, x);
+            if (y > maxValue) {
+                maxValue = y;
+                argMax = x;
+            }
+            x += h;
+        }
+        return argMax;
+    }
 };
 
 #endif //CPP_BSPLINE_H
