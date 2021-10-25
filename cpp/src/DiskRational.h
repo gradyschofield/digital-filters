@@ -10,7 +10,8 @@
 #include<cmath>
 
 #include<Complex.h>
-#include<Optimizable.h>
+#include<DerivativeOptimizable.h>
+#include<GeneticallyOptimizable.h>
 #include"Polynomial.h"
 #include"Util.h"
 #include"VecUtil.h"
@@ -19,7 +20,7 @@
 using namespace std;
 
 template<typename T>
-class DiskRational : public Optimizable<DiskRational, T> {
+class DiskRational : public DerivativeOptimizable<DiskRational, T>, public GeneticallyOptimizable<DiskRational, T> {
     static const T constexpr maxNumeratorRadius = 1.2;
     static const T constexpr maxDenominatorRadius = 0.2;
 
@@ -261,35 +262,35 @@ public:
     }
 #endif
 
-    void mutate(float chanceOfMutation, float mutationSize) {
+    void mutate(float mutationRate, float relativeMutationSize) override {
         for(T &x : numeratorCoef) {
-            if(Util::rand::uniformReal() < chanceOfMutation) {
-                x *= 1 + (Util::rand::uniformReal()-0.5)*mutationSize;
+            if(Util::rand::uniformReal() < mutationRate) {
+                x *= 1 + (2*Util::rand::uniformReal()-1) * relativeMutationSize;
             }
         }
         for(T & x : denominatorX) {
-            if(Util::rand::uniformReal() < chanceOfMutation) {
-                x *= 1 + (Util::rand::uniformReal()-0.5)*mutationSize;
+            if(Util::rand::uniformReal() < mutationRate) {
+                x *= 1 + (2*Util::rand::uniformReal()-1) * relativeMutationSize;
             }
         }
         for(T & theta : denominatorTheta) {
-            if(Util::rand::uniformReal() < chanceOfMutation) {
-                theta *= 1 + (Util::rand::uniformReal()-0.5)*mutationSize;
+            if(Util::rand::uniformReal() < mutationRate) {
+                theta *= 1 + (2*Util::rand::uniformReal()-1) * relativeMutationSize;
             }
         }
         computeRootsFromParams();
     }
 
-    DiskRational crossover(DiskRational<T> const & other) const & {
+    DiskRational<T> crossover(DiskRational<T> const & other, float crossoverRate) const override {
         vector<T> newNumeratorCoef;
         newNumeratorCoef.reserve(numeratorCoef.size());
         for(int i = 0; i < numeratorCoef.size(); ++i) {
-            newNumeratorCoef.push_back(Util::rand::uniformReal() < 0.5 ? numeratorCoef[i] : other.numeratorCoef[i]);
+            newNumeratorCoef.push_back(Util::rand::uniformReal() < crossoverRate ? numeratorCoef[i] : other.numeratorCoef[i]);
         }
         vector<complex<T>> newDenominatorRoots;
         newDenominatorRoots.reserve(denominatorRoots.size());
         for(int i = 0; i < denominatorRoots.size(); ++i) {
-            newDenominatorRoots.push_back(Util::rand::uniformReal() < 0.5 ? denominatorRoots[i] : other.denominatorRoots[i]);
+            newDenominatorRoots.push_back(Util::rand::uniformReal() < crossoverRate ? denominatorRoots[i] : other.denominatorRoots[i]);
         }
         return DiskRational(newNumeratorCoef, newDenominatorRoots);
     }

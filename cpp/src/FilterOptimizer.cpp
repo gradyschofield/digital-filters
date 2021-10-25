@@ -62,11 +62,11 @@ int main() {
     bool foundGrid = false;
     for(; numGridPoints < 10000; numGridPoints += 50) {
         vector<T> grid = Util::linspace<T>(0, sampleRate/2, numGridPoints);
-        BSpline<T> splineBasis(grid, BSpline<T>::getDefaultKnots());
-        vector<T> filterFunc = splineBasis.getBasis(basisIdx);
+        BSpline<T> splineBasis(BSpline<T>::getDefaultKnots());
+        vector<T> filterFunc = splineBasis.getBasis(basisIdx, grid);
         vector<T> fineGrid = Util::linspace<T>(0, sampleRate/2, numGridPoints + 50);
-        BSpline<T> fineSplineBasis(fineGrid, BSpline<T>::getDefaultKnots());
-        vector<T> fineFilterFunc = fineSplineBasis.getBasis(basisIdx);
+        BSpline<T> fineSplineBasis(BSpline<T>::getDefaultKnots());
+        vector<T> fineFilterFunc = fineSplineBasis.getBasis(basisIdx, fineGrid);
         vector<T> interpolatedFunc = interpolate(grid, filterFunc, fineGrid);
         T basisMass = splineBasis.mass(basisIdx);
         T n = 0;
@@ -90,8 +90,8 @@ int main() {
         exit(1);
     }
     vector<T> grid = Util::linspace<T>(0, sampleRate/2, numGridPoints);
-    BSpline<T> splineBasis(grid, BSpline<T>::getDefaultKnots());
-    vector<T> filterFunc = splineBasis.getBasis(basisIdx);
+    BSpline<T> splineBasis(BSpline<T>::getDefaultKnots());
+    vector<T> filterFunc = splineBasis.getBasis(basisIdx, grid);
 
     auto objective = [&grid, &filterFunc, sampleRate](DiskRational<T> const & r) {
         return Util::objective(grid, filterFunc, sampleRate, r);
@@ -105,7 +105,7 @@ int main() {
         return DiskRational<T>::create(numNumeratorRoots, numDenominatorRoots);
     };
 
-    DiskRational<T> rational = geneticOptimizer<DiskRational, T>(objective, create, 5, 2000, 200);
+    DiskRational<T> rational = geneticOptimizer<DiskRational, T>(objective, create);
     ofstream rootTalk("rootTalk");
     auto startTime = chrono::high_resolution_clock::now();
     int iterations = 0;

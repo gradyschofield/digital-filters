@@ -5,6 +5,7 @@
 #include<iostream>
 
 #include<BSpline.h>
+#include<GeneticAlgorithm.h>
 
 int main(int argc, char ** argv) {
 
@@ -12,39 +13,33 @@ int main(int argc, char ** argv) {
 
     int sampleRate = 96000;
     int numGridPoints = 10000;
-    int basisIdx = 7;
     int degree = 3;
 
-    T minFrequency = 0;
-    T maxFrequency = sampleRate / 2;
-    //vector<T> basisMaxima{39, 78, 156, 312, 625, 1250, 2500, 5000, 10000, 20000};
-    vector<T> basisMaxima{0, 12.5, 25, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 25600*2, 25600*4,25600*8 };
-    vector<T> maximumCeneteredBasisKnots{minFrequency};
-    for(int i = 0; i < degree; ++i) {
-        //maximumCeneteredBasisKnots.push_back(minFrequency + (i+1) * 0.01);
-        //maximumCeneteredBasisKnots.push_back(minFrequency);
-    }
-    copy(begin(basisMaxima), end(basisMaxima), back_inserter(maximumCeneteredBasisKnots));
-    for(int i = 0; i < degree; ++i) {
-        T h = (maxFrequency - basisMaxima.back()) * 0.01;
-        //maximumCeneteredBasisKnots.push_back(maxFrequency - (i+1) * 0.01);
-        //maximumCeneteredBasisKnots.push_back(maxFrequency);
-    }
+    vector<T> basisMaximum{5, 50, 75, 150, 300, 600, 900, 1250, 1800, 2500, 3500, 5000, 7500, 10000, 20000, 30000};
+    //vector<T> knots{0, 5, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 40000, 48000};
+    vector<T> knots{0, 5, 50, 75, 150, 300, 600, 900, 1250, 1800, 2500, 3500, 5000, 7500, 10000, 20000, 25000, 30000, 35000, 48000};
+
+    auto create = [&knots, degree]() {
+        BSpline<T> ret(knots, degree);
+        ret.mutate(0.5, 0.01);
+        return ret;
+    };
+
+    auto objective = [&basisMaximum](BSpline<T> const & spline) {
+        int numBases = spline.getNumBases();
+        T obj = 0;
+        for(int i = 1; i < min(numBases, (int)basisMaximum.size()); ++i) {
+            obj += fabs(spline.max(i) - basisMaximum[i-1])/basisMaximum[i-1];
+        }
+        return obj/min(numBases, (int)basisMaximum.size());
+    };
 
     vector<T> grid = Util::linspace<T>(0, sampleRate / 2, numGridPoints);
-    //BSpline<T> splineBasis(grid, BSpline<T>::getDefaultKnots(), degree);
-    BSpline<T> splineBasis(grid, maximumCeneteredBasisKnots, degree);
-    cout << "default knots: ";
-    for(T x : BSpline<T>::getDefaultKnots()) cout << x << " ";
-    cout << "\n";
-    cout << "default knots: ";
-    for(T x : maximumCeneteredBasisKnots) cout << x << " ";
-    cout << "\n";
-    for(int basisIdx = 0; basisIdx < splineBasis.getNumBases(); ++basisIdx) {
-        stringstream sstr;
-        Util::writePlotData(splineBasis.plotData(grid, basisIdx), "spline", basisIdx);
-        cout << splineBasis.max(basisIdx) << "\n";
-    }
-
+    BSpline<T> splineBasis(knots, degree);
+    splineBasis.printInfo();
+    splineBasis.plotAllBases("spline", grid);
+    BSpline<T> optimizedSpline = geneticOptimizer<BSpline, T>(objective, create, 10000);
+    optimizedSpline.plotAllBases("spline", grid);
+    optimizedSpline.printInfo();
     return 0;
 }

@@ -17,7 +17,7 @@ template<template<typename> typename R, typename T, typename Objective, typename
 requires(is_floating_point_v<T> &&
          is_invocable_r_v<T, Objective, R<T> const &> &&
          is_invocable_r_v<tuple<vector<T>, T>, Derivative, R<T> const &> &&
-         is_base_of<Optimizable<R, T>, R<T>>::value)
+         is_base_of<DerivativeOptimizable<R, T>, R<T>>::value)
 R<T> lineSearch(Objective && objective, Derivative && derivative, R<T> const & startingPoint,
                 float stagnationTolerance, int maxLineSearchSteps, float maxStepLength,
                 float tol, bool bfgs = false) {
@@ -90,8 +90,6 @@ R<T> lineSearch(Objective && objective, Derivative && derivative, R<T> const & s
             }
 
             if(!satisfiedWolfeConditions) {
-                //objs =[objective(grid, filter, sampleRate, r.copy().updateCoordinates(deriv, rate)) for rate in steps]
-                //print(objs)
                 int minIdx = Util::argmin(objs);
                 if(abs(objs.back() - objs[0]) / abs(objs[0]) < 1E-2) {
                     break;

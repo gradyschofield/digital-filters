@@ -17,12 +17,13 @@ set(SRC
         src/Complex.h
         src/BLAS.h
         src/BLAS.cpp
-        src/Optimizable.h
+        src/DerivativeOptimizable.h
         src/LineSearch.h
         src/GeneticAlgorithm.h
+        src/GeneticallyOptimizable.h
         )
 
-add_executable(filterOptimizer src/FilterOptimizer.cpp ${SRC})
+add_executable(filterOptimizer src/FilterOptimizer.cpp ${SRC} )
 target_link_libraries(filterOptimizer ${BLAS_LIBRARIES})
 
 add_executable(filterPeakFinder src/FilterPeakFinder.cpp ${SRC})
