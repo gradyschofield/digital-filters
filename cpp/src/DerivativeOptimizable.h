@@ -9,13 +9,13 @@
 
 using namespace std;
 
-template<template<typename> typename R, typename T>
+template<template<typename> typename Optimizable, typename FieldElement>
 class DerivativeOptimizable {
 public:
-    virtual R<T> copy() const = 0;
-    virtual vector<T> getCoordinates() const = 0;
-    virtual void updateCoordinates(vector<T> const & direction, T stepLength) = 0;
-    virtual ~DerivativeOptimizable<R, T>(){
+    virtual Optimizable<FieldElement> copy() const = 0;
+    virtual vector<FieldElement> getCoordinates() const = 0;
+    virtual void updateCoordinates(vector<FieldElement> const & direction, FieldElement stepLength) = 0;
+    virtual ~DerivativeOptimizable<Optimizable, FieldElement>(){
     }
 };
 

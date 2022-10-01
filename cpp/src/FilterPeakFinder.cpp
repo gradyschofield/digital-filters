@@ -36,10 +36,10 @@ int main(int argc, char ** argv) {
 
     vector<T> grid = Util::linspace<T>(0, sampleRate / 2, numGridPoints);
     BSpline<T> splineBasis(knots, degree);
-    splineBasis.printInfo();
+    splineBasis.updateInfo();
     splineBasis.plotAllBases("spline", grid);
     BSpline<T> optimizedSpline = geneticOptimizer<BSpline, T>(objective, create, 10000);
     optimizedSpline.plotAllBases("spline", grid);
-    optimizedSpline.printInfo();
+    optimizedSpline.updateInfo();
     return 0;
 }

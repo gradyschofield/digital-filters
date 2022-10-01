@@ -180,6 +180,50 @@ namespace Util {
             ofs << p.real() << " " << p.imag() << "\n";
         }
     }
+
+    template<template<typename> typename Optimizable, typename FieldElement>
+    tuple<complex<FieldElement>, FieldElement> minimizeOnGrid(vector<FieldElement> const & grid,
+                                                              vector<FieldElement> const & filterFunc,
+                                                              int sampleRate,
+                                                              Optimizable<FieldElement> const & rational,
+                                                              bool insertNumerator) {
+        FieldElement minObj = numeric_limits<FieldElement>::max();
+        complex<FieldElement> minRoot;
+        for (FieldElement theta: Util::linspace<FieldElement>(0, M_PI, 20)) {
+            for (FieldElement radius: Util::linspace<FieldElement>(0.01, insertNumerator ? 1.1 : 0.5, 20)) {
+                complex<FieldElement> root = Util::toComplex(radius, theta);
+                FieldElement obj;
+                if (insertNumerator) {
+                    obj = Util::objective(grid, filterFunc, sampleRate, rational, {root});
+                } else {
+                    obj = Util::objective(grid, filterFunc, sampleRate, rational, {}, {root});
+                }
+                if (obj < minObj) {
+                    minObj = obj;
+                    minRoot = root;
+                }
+            }
+        }
+        return forward_as_tuple(minRoot, minObj);
+    }
+
+    template<typename FieldElement>
+    vector<FieldElement> interpolate(vector<FieldElement> const & coarseGrid,
+                                     vector<FieldElement> const & coarseFunc,
+                                     vector<FieldElement> const & fineGrid) {
+        vector<FieldElement> fineFunc(fineGrid.size());
+        int coarseGridIdx = 0;
+        for(int i = 0; i < fineGrid.size(); ++i) {
+            FieldElement x = fineGrid[i];
+            while(x > coarseGrid[coarseGridIdx+1]) {
+                ++coarseGridIdx;
+            }
+            FieldElement alpha = (x - coarseGrid[coarseGridIdx]) / (coarseGrid[coarseGridIdx + 1] - coarseGrid[coarseGridIdx]);
+            fineFunc[i] = (1-alpha) * coarseFunc[coarseGridIdx] + alpha * coarseFunc[coarseGridIdx+1];
+        }
+        return fineFunc;
+    }
+
 }
 
 #endif //CPP_UTIL_H
